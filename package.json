@@ -1,14 +1,21 @@
 {
-  "name": "${PROJECT_NAME}",
+  "name": "einkaufsliste_frontend",
+  "type": "module",
   "version": "1.0.0",
-  "description": "",
-  "main": "dist/index.js",
   "scripts": {
-    "build": "tsc"
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "lint": "astro check"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@astrojs/check": "^0.9.4",
+    "@astrojs/node": "^9.5.2",
+    "@astrojs/svelte": "^7.0.4",
+    "astro": "^5.1.5",
+    "svelte": "^5.16.2"
+  },
   "devDependencies": {
-    "typescript": "^5.5.3"
-  },
-  "private": true
+    "typescript": "^5.7.3"
+  }
 }

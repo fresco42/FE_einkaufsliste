@@ -12,7 +12,7 @@ import type {
   UpdateItemRequest,
 } from '../types/api';
 
-const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
+const API_URL = import.meta.env.PUBLIC_API_URL || 'https://mt241037-10957.node.ustp.cloud';
 
 function getToken(): string | null {
   if (typeof window === 'undefined') return null;
