@@ -1,0 +1,95 @@
+---
+interface Props {
+  title: string;
+}
+
+const { title } = Astro.props;
+---
+
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>{title} | Einkaufsliste</title>
+  </head>
+  <body>
+    <header class="header">
+      <div class="header-content">
+        <a href="/" class="logo">Einkaufsliste</a>
+        <nav id="nav-auth"></nav>
+      </div>
+    </header>
+    <main>
+      <slot />
+    </main>
+  </body>
+</html>
+
+<style is:global>
+  @import '../styles/global.css';
+</style>
+
+<style>
+  .header {
+    background-color: var(--color-primary);
+    color: white;
+    padding: var(--spacing-md);
+  }
+
+  .header-content {
+    max-width: 800px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .logo {
+    color: white;
+    font-weight: 600;
+    font-size: 1.25rem;
+  }
+
+  .logo:hover {
+    text-decoration: none;
+    opacity: 0.9;
+  }
+
+  main {
+    min-height: calc(100vh - 60px);
+  }
+</style>
+
+<script>
+  import { authStore } from '../lib/auth';
+
+  function updateNav() {
+    const nav = document.getElementById('nav-auth');
+    if (!nav) return;
+
+    const state = authStore.getState();
+
+    if (state.isAuthenticated && state.user) {
+      nav.innerHTML = `
+        <span style="margin-right: var(--spacing-md); color: rgba(255,255,255,0.8);">
+          ${state.user.username}
+        </span>
+        <button id="logout-btn" class="btn-secondary" style="padding: 4px 12px; font-size: 0.875rem;">
+          Abmelden
+        </button>
+      `;
+      document.getElementById('logout-btn')?.addEventListener('click', () => {
+        authStore.logout();
+      });
+    } else {
+      nav.innerHTML = `
+        <a href="/" style="color: white; margin-right: var(--spacing-md);">Anmelden</a>
+        <a href="/register" style="color: white;">Registrieren</a>
+      `;
+    }
+  }
+
+  authStore.subscribe(updateNav);
+</script>

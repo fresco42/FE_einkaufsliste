@@ -1,0 +1,11 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import ListDetail from '../../components/ListDetail.svelte';
+
+const { id } = Astro.params;
+const listId = parseInt(id || '0', 10);
+---
+
+<Layout title="Liste">
+  <ListDetail listId={listId} client:load />
+</Layout>
