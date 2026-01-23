@@ -1,6 +1,8 @@
 ---
-
+import { ModeWatcher } from "mode-watcher";
 import ModeToggle from "../components/ModeToggle.svelte";
+import AuthNav from "../components/AuthNav.svelte";
+import LogoLink from "../components/LogoLink.svelte";
 
 interface Props {
   title: string;
@@ -18,18 +20,36 @@ const { title } = Astro.props;
     <title>{title} | Einkaufsliste</title>
     <!-- Theme früh laden um Flackern zu vermeiden -->
     <script is:inline>
-      const theme = localStorage.getItem('theme')
-      if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-        document.documentElement.classList.add('dark')
+      const isBrowser = typeof localStorage !== 'undefined';
+      const getThemePreference = () => {
+        if (isBrowser && localStorage.getItem('theme')) {
+          return localStorage.getItem('theme');
+        }
+        return window.matchMedia('(prefers-color-scheme: dark)').matches
+          ? 'dark' : 'light';
+      };
+      const isDark = getThemePreference() === 'dark';
+      document.documentElement.classList[isDark ? 'add' : 'remove']('dark');
+
+      if (isBrowser) {
+        const observer = new MutationObserver(() => {
+          const isDark = document.documentElement.classList.contains('dark');
+          localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        });
+        observer.observe(document.documentElement, {
+          attributes: true,
+          attributeFilter: ['class']
+        });
       }
     </script>
   </head>
   <body>
+    <ModeWatcher client:load />
     <header class="header">
       <div class="header-content">
-        <a href="/" class="logo">Einkaufsliste</a>
+        <LogoLink client:load />
         <div class="header-right">
-          <nav id="nav-auth"></nav>
+          <AuthNav client:load />
           <ModeToggle client:load />
         </div>
       </div>
@@ -65,50 +85,7 @@ const { title } = Astro.props;
     gap: var(--spacing-md);
   }
 
-  .logo {
-    color: white;
-    font-weight: 600;
-    font-size: 1.25rem;
-  }
-
-  .logo:hover {
-    text-decoration: none;
-    opacity: 0.9;
-  }
-
   main {
     min-height: calc(100vh - 60px);
   }
 </style>
-
-<script>
-  import { authStore } from '../lib/auth';
-
-  function updateNav() {
-    const nav = document.getElementById('nav-auth');
-    if (!nav) return;
-
-    const state = authStore.getState();
-
-    if (state.isAuthenticated && state.user) {
-      nav.innerHTML = `
-        <span style="margin-right: var(--spacing-md); color: rgba(255,255,255,0.8);">
-          ${state.user.username}
-        </span>
-        <button id="logout-btn" class="btn-secondary" style="padding: 4px 12px; font-size: 0.875rem;">
-          Abmelden
-        </button>
-      `;
-      document.getElementById('logout-btn')?.addEventListener('click', () => {
-        authStore.logout();
-      });
-    } else {
-      nav.innerHTML = `
-        <a href="/" style="color: white; margin-right: var(--spacing-md);">Anmelden</a>
-        <a href="/register" style="color: white;">Registrieren</a>
-      `;
-    }
-  }
-
-  authStore.subscribe(updateNav);
-</script>

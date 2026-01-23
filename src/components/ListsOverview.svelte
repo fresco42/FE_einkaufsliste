@@ -1,160 +1,141 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { listApi } from '../lib/api';
-  import { authStore } from '../lib/auth';
+  import { auth } from '../lib/auth.svelte';
   import type { List } from '../types/api';
 
-  type LoadingState = 'loading' | 'success' | 'error' | 'empty' | 'unauthorized';
+  // Daten-Promise für {#await} - startet automatisch wenn authenticated
+  let listsPromise = $state<Promise<List[]> | null>(null);
 
-  let lists = $state<List[]>([]);
-  let loadingStatus = $state<LoadingState>('loading');
-  let error = $state('');
+  // Formular-State
   let newListName = $state('');
   let creating = $state(false);
   let createError = $state('');
   let deletingId = $state<number | null>(null);
 
-  onMount(() => {
-    const authState = authStore.getState();
-    if (!authState.isAuthenticated || !authState.user) {
-      loadingStatus = 'unauthorized';
-      return;
+  // Automatisch laden wenn User authentifiziert
+  $effect(() => {
+    if (auth.isAuthenticated && auth.user) {
+      listsPromise = loadLists(auth.user.id);
     }
-    loadLists(authState.user.id);
   });
 
-  async function loadLists(userId: number) {
-    loadingStatus = 'loading';
-    error = '';
-
+  async function loadLists(userId: number): Promise<List[]> {
     const result = await listApi.getByUserId(userId);
-
-    if (result.success) {
-      lists = result.data;
-      loadingStatus = lists.length === 0 ? 'empty' : 'success';
-    } else {
-      error = result.error.message;
-      loadingStatus = 'error';
-    }
+    if (!result.success) throw new Error(result.error.message);
+    return result.data;
   }
 
   async function createList(e: Event) {
     e.preventDefault();
     createError = '';
-
-    const authState = authStore.getState();
-    if (!authState.user) return;
-
-    if (!newListName.trim()) {
+    if (!auth.user || !newListName.trim()) {
       createError = 'Name ist erforderlich';
       return;
     }
 
     creating = true;
-
     const result = await listApi.create({
       name: newListName.trim(),
-      user_id: authState.user.id,
+      user_id: auth.user.id,
     });
-
     creating = false;
 
     if (result.success) {
       newListName = '';
-      await loadLists(authState.user.id);
+      listsPromise = loadLists(auth.user.id); // Neu laden
     } else {
       createError = result.error.message;
     }
   }
 
   async function deleteList(id: number) {
-    const authState = authStore.getState();
-    if (!authState.user) return;
-
+    if (!auth.user) return;
     deletingId = id;
 
     const result = await listApi.delete(id);
-
     deletingId = null;
 
     if (result.success) {
-      await loadLists(authState.user.id);
+      listsPromise = loadLists(auth.user.id);
     } else {
-      alert('Fehler beim Loeschen: ' + result.error.message);
+      alert('Fehler beim Löschen: ' + result.error.message);
     }
   }
 
   function formatDate(dateStr: string): string {
     return new Date(dateStr).toLocaleDateString('de-DE', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
+      day: '2-digit', month: '2-digit', year: 'numeric',
     });
   }
 </script>
 
 <div class="container">
-  {#if loadingStatus === 'unauthorized'}
+  {#if !auth.isAuthenticated}
+    <!-- Nicht eingeloggt -->
     <div class="card">
-      <p class="error-message">Sie muessen angemeldet sein, um Ihre Listen zu sehen.</p>
-      <a href="/" class="btn-primary" style="display: inline-block; margin-top: var(--spacing-md);">Zur Anmeldung</a>
+      <p class="error-message">Sie müssen angemeldet sein, um Ihre Listen zu sehen.</p>
+      <a href="/" class="btn-primary" style="display: inline-block; margin-top: var(--spacing-md);">
+        Zur Anmeldung
+      </a>
     </div>
-  {:else if loadingStatus === 'loading'}
-    <div class="loading">Listen werden geladen...</div>
-  {:else if loadingStatus === 'error'}
-    <div class="card">
-      <p class="error-message">{error}</p>
-      <button class="btn-primary mt-md" onclick={() => {
-        const authState = authStore.getState();
-        if (authState.user) loadLists(authState.user.id);
-      }}>Erneut versuchen</button>
-    </div>
-  {:else}
-    <div class="header-section">
-      <h1>Meine Listen</h1>
-    </div>
-
-    <form class="create-form card" onsubmit={createList}>
-      <div class="form-row">
-        <input
-          type="text"
-          placeholder="Neue Liste erstellen..."
-          bind:value={newListName}
-          disabled={creating}
-        />
-        <button type="submit" class="btn-primary" disabled={creating}>
-          {creating ? '...' : 'Erstellen'}
-        </button>
+  {:else if listsPromise}
+    <!-- Deklaratives Loading mit {#await} -->
+    {#await listsPromise}
+      <div class="loading">Listen werden geladen...</div>
+    {:then lists}
+      <div class="header-section">
+        <h1>Meine Listen</h1>
       </div>
-      {#if createError}
-        <p class="error-message">{createError}</p>
+
+      <form class="create-form card" onsubmit={createList}>
+        <div class="form-row">
+          <input
+            type="text"
+            placeholder="Neue Liste erstellen..."
+            bind:value={newListName}
+            disabled={creating}
+          />
+          <button type="submit" class="btn-primary" disabled={creating}>
+            {creating ? '...' : 'Erstellen'}
+          </button>
+        </div>
+        {#if createError}
+          <p class="error-message">{createError}</p>
+        {/if}
+      </form>
+
+      {#if lists.length === 0}
+        <div class="empty-state card">
+          <p>Sie haben noch keine Listen erstellt.</p>
+          <p>Erstellen Sie Ihre erste Liste mit dem Formular oben.</p>
+        </div>
+      {:else}
+        <ul class="lists">
+          {#each lists as list (list.id)}
+            <li class="list-item card">
+              <a href={`/lists/${list.id}`} class="list-link">
+                <span class="list-name">{list.name}</span>
+                <span class="list-date">{formatDate(list.created_at)}</span>
+              </a>
+              <button
+                class="btn-danger delete-btn"
+                onclick={() => deleteList(list.id)}
+                disabled={deletingId === list.id}
+              >
+                {deletingId === list.id ? '...' : 'X'}
+              </button>
+            </li>
+          {/each}
+        </ul>
       {/if}
-    </form>
-
-    {#if loadingStatus === 'empty'}
-      <div class="empty-state card">
-        <p>Sie haben noch keine Listen erstellt.</p>
-        <p>Erstellen Sie Ihre erste Liste mit dem Formular oben.</p>
+    {:catch error}
+      <div class="card">
+        <p class="error-message">{error.message}</p>
+        <button class="btn-primary mt-md" onclick={() => {
+          if (auth.user) listsPromise = loadLists(auth.user.id);
+        }}>Erneut versuchen</button>
       </div>
-    {:else}
-      <ul class="lists">
-        {#each lists as list (list.id)}
-          <li class="list-item card">
-            <a href={`/lists/${list.id}`} class="list-link">
-              <span class="list-name">{list.name}</span>
-              <span class="list-date">{formatDate(list.created_at)}</span>
-            </a>
-            <button
-              class="btn-danger delete-btn"
-              onclick={() => deleteList(list.id)}
-              disabled={deletingId === list.id}
-            >
-              {deletingId === list.id ? '...' : 'X'}
-            </button>
-          </li>
-        {/each}
-      </ul>
-    {/if}
+    {/await}
   {/if}
 </div>
 

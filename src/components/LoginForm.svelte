@@ -1,6 +1,13 @@
 <script lang="ts">
   import { userApi } from '../lib/api';
-  import { authStore } from '../lib/auth';
+  import { auth } from '../lib/auth.svelte';
+
+  // Redirect wenn bereits eingeloggt
+  $effect(() => {
+    if (auth.isAuthenticated) {
+      window.location.href = '/lists';
+    }
+  });
 
   let username = $state('');
   let password = $state('');
@@ -22,16 +29,15 @@
       const result = await userApi.login({ username: username.trim(), password });
 
       if (result.success) {
-        authStore.login(result.data.user, result.data.token);
+        // Neuer Store: direkter Aufruf, kein getState() nötig
+        auth.login(result.data.user, result.data.token);
         window.location.href = '/lists';
       } else {
-        if (result.error.status === 401) {
-          error = 'Ungueltige Anmeldedaten';
-        } else if (result.error.status === 400) {
-          error = 'Benutzername und Passwort sind erforderlich';
-        } else {
-          error = result.error.message;
-        }
+        error = result.error.status === 401 
+          ? 'Ungültige Anmeldedaten'
+          : result.error.status === 400 
+            ? 'Benutzername und Passwort sind erforderlich'
+            : result.error.message;
       }
     } catch {
       error = 'Ein unerwarteter Fehler ist aufgetreten';

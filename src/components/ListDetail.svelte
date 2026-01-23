@@ -1,10 +1,7 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { listApi, itemApi } from '../lib/api';
-  import { authStore } from '../lib/auth';
+  import { auth } from '../lib/auth.svelte';
   import type { List, Item } from '../types/api';
-
-  type LoadingState = 'loading' | 'success' | 'error' | 'not-found' | 'empty';
 
   interface Props {
     listId: number;
@@ -12,75 +9,71 @@
 
   let { listId }: Props = $props();
 
-  let list = $state<List | null>(null);
-  let items = $state<Item[]>([]);
-  let loadingStatus = $state<LoadingState>('loading');
-  let error = $state('');
+  // Daten-State
+  let dataPromise = $state<Promise<{ list: List; items: Item[] }> | null>(null);
+  let currentList = $state<List | null>(null);
+  let currentItems = $state<Item[]>([]);
 
+  // Formular-State
   let newItemName = $state('');
   let newItemQuantity = $state(1);
   let creating = $state(false);
   let createError = $state('');
 
+  // Edit-State
   let editingListName = $state(false);
   let editedName = $state('');
   let savingName = $state(false);
-
   let updatingItemId = $state<number | null>(null);
   let deletingItemId = $state<number | null>(null);
 
-  onMount(() => {
-    loadData();
+  // Initial laden
+  $effect(() => {
+    dataPromise = loadData();
   });
 
-  async function loadData() {
-    loadingStatus = 'loading';
-    error = '';
-
+  async function loadData(): Promise<{ list: List; items: Item[] }> {
     const [listResult, itemsResult] = await Promise.all([
       listApi.getById(listId),
       itemApi.getByListId(listId),
     ]);
 
     if (!listResult.success) {
-      if (listResult.error.status === 404) {
-        loadingStatus = 'not-found';
-      } else {
-        error = listResult.error.message;
-        loadingStatus = 'error';
-      }
-      return;
+      throw new Error(listResult.error.status === 404 ? 'Liste nicht gefunden' : listResult.error.message);
+    }
+    if (!itemsResult.success) {
+      throw new Error(itemsResult.error.message);
     }
 
-    list = listResult.data;
-    editedName = list.name;
+    // Für Mutation speichern
+    currentList = listResult.data;
+    currentItems = itemsResult.data;
+    editedName = listResult.data.name;
 
-    if (itemsResult.success) {
-      items = itemsResult.data;
-      loadingStatus = items.length === 0 ? 'empty' : 'success';
-    } else {
-      error = itemsResult.error.message;
-      loadingStatus = 'error';
+    return { list: listResult.data, items: itemsResult.data };
+  }
+
+  async function loadItems() {
+    const result = await itemApi.getByListId(listId);
+    if (result.success) {
+      currentItems = result.data;
     }
   }
 
   async function createItem(e: Event) {
     e.preventDefault();
     createError = '';
-
     if (!newItemName.trim()) {
       createError = 'Name ist erforderlich';
       return;
     }
 
     creating = true;
-
     const result = await itemApi.create({
       name: newItemName.trim(),
       quantity: newItemQuantity,
       list_id: listId,
     });
-
     creating = false;
 
     if (result.success) {
@@ -92,26 +85,12 @@
     }
   }
 
-  async function loadItems() {
-    const result = await itemApi.getByListId(listId);
-    if (result.success) {
-      items = result.data;
-      loadingStatus = items.length === 0 ? 'empty' : 'success';
-    }
-  }
-
   async function toggleChecked(item: Item) {
     updatingItemId = item.id;
-
     const result = await itemApi.update(item.id, { checked: !item.checked });
-
     updatingItemId = null;
-
-    if (result.success) {
-      await loadItems();
-    } else {
-      alert('Fehler: ' + result.error.message);
-    }
+    if (result.success) await loadItems();
+    else alert('Fehler: ' + result.error.message);
   }
 
   async function updateQuantity(item: Item, delta: number) {
@@ -119,182 +98,166 @@
     if (newQuantity === item.quantity) return;
 
     updatingItemId = item.id;
-
     const result = await itemApi.update(item.id, { quantity: newQuantity });
-
     updatingItemId = null;
-
-    if (result.success) {
-      await loadItems();
-    } else {
-      alert('Fehler: ' + result.error.message);
-    }
+    if (result.success) await loadItems();
+    else alert('Fehler: ' + result.error.message);
   }
 
   async function deleteItem(id: number) {
     deletingItemId = id;
-
     const result = await itemApi.delete(id);
-
     deletingItemId = null;
-
-    if (result.success) {
-      await loadItems();
-    } else {
-      alert('Fehler beim Loeschen: ' + result.error.message);
-    }
+    if (result.success) await loadItems();
+    else alert('Fehler beim Löschen: ' + result.error.message);
   }
 
   async function saveListName() {
-    if (!editedName.trim() || !list) return;
+    if (!editedName.trim() || !currentList) return;
 
     savingName = true;
-
     const result = await listApi.update(listId, { name: editedName.trim() });
-
     savingName = false;
 
     if (result.success) {
-      list = { ...list, name: editedName.trim() };
+      currentList = { ...currentList, name: editedName.trim() };
       editingListName = false;
     } else {
       alert('Fehler: ' + result.error.message);
     }
   }
-
-  function isAuthenticated(): boolean {
-    return authStore.getState().isAuthenticated;
-  }
 </script>
 
 <div class="container">
-  {#if loadingStatus === 'loading'}
-    <div class="loading">Liste wird geladen...</div>
-  {:else if loadingStatus === 'not-found'}
-    <div class="card">
-      <h2>Liste nicht gefunden</h2>
-      <p class="error-message">Die angeforderte Liste existiert nicht.</p>
-      <a href="/lists" class="btn-primary" style="display: inline-block; margin-top: var(--spacing-md);">Zurueck zur Uebersicht</a>
-    </div>
-  {:else if loadingStatus === 'error'}
-    <div class="card">
-      <p class="error-message">{error}</p>
-      <button class="btn-primary mt-md" onclick={loadData}>Erneut versuchen</button>
-    </div>
-  {:else if list}
-    <div class="header-section">
-      <a href="/lists" class="back-link">Zurueck</a>
-      {#if editingListName}
-        <div class="edit-name-form">
-          <input
-            type="text"
-            bind:value={editedName}
-            disabled={savingName}
-          />
-          <button class="btn-primary" onclick={saveListName} disabled={savingName}>
-            {savingName ? '...' : 'Speichern'}
-          </button>
-          <button class="btn-secondary" onclick={() => { editingListName = false; editedName = list?.name || ''; }}>
-            Abbrechen
-          </button>
-        </div>
-      {:else}
-        <div class="title-row">
-          <h1>{list.name}</h1>
-          {#if isAuthenticated()}
-            <button class="btn-secondary edit-btn" onclick={() => { editingListName = true; }}>
-              Bearbeiten
+  {#if dataPromise}
+    {#await dataPromise}
+      <div class="loading">Liste wird geladen...</div>
+    {:then _data}
+      <!-- Header -->
+      <div class="header-section">
+        <a href="/lists" class="back-link">Zurück</a>
+        {#if editingListName}
+          <div class="edit-name-form">
+            <input type="text" bind:value={editedName} disabled={savingName} />
+            <button class="btn-primary" onclick={saveListName} disabled={savingName}>
+              {savingName ? '...' : 'Speichern'}
             </button>
-          {/if}
-        </div>
-      {/if}
-    </div>
-
-    {#if isAuthenticated()}
-      <form class="create-form card" onsubmit={createItem}>
-        <div class="form-row">
-          <input
-            type="text"
-            placeholder="Neuer Artikel..."
-            bind:value={newItemName}
-            disabled={creating}
-            class="item-name-input"
-          />
-          <div class="quantity-input">
-            <label for="quantity">Menge:</label>
-            <input
-              type="number"
-              id="quantity"
-              min="1"
-              bind:value={newItemQuantity}
-              disabled={creating}
-            />
+            <button class="btn-secondary" onclick={() => { editingListName = false; editedName = currentList?.name || ''; }}>
+              Abbrechen
+            </button>
           </div>
-          <button type="submit" class="btn-primary" disabled={creating}>
-            {creating ? '...' : 'Hinzufuegen'}
-          </button>
-        </div>
-        {#if createError}
-          <p class="error-message">{createError}</p>
-        {/if}
-      </form>
-    {/if}
-
-    {#if loadingStatus === 'empty'}
-      <div class="empty-state card">
-        <p>Diese Liste ist leer.</p>
-        {#if isAuthenticated()}
-          <p>Fuegen Sie Artikel mit dem Formular oben hinzu.</p>
+        {:else}
+          <div class="title-row">
+            <h1>{currentList?.name}</h1>
+            {#if auth.isAuthenticated}
+              <button class="btn-secondary edit-btn" onclick={() => { editingListName = true; }}>
+                Bearbeiten
+              </button>
+            {/if}
+          </div>
         {/if}
       </div>
-    {:else}
-      <ul class="items">
-        {#each items as item (item.id)}
-          <li class="item-row card" class:checked={item.checked}>
-            <div class="item-content">
-              {#if isAuthenticated()}
-                <button
-                  class="checkbox"
-                  class:checked={item.checked}
-                  onclick={() => toggleChecked(item)}
-                  disabled={updatingItemId === item.id}
-                  aria-label={item.checked ? 'Als nicht erledigt markieren' : 'Als erledigt markieren'}
-                >
-                  {item.checked ? 'V' : ''}
-                </button>
-              {/if}
-              <span class="item-name" class:checked={item.checked}>{item.name}</span>
-              <div class="item-quantity">
-                {#if isAuthenticated()}
+
+      <!-- Neues Item Formular -->
+      {#if auth.isAuthenticated}
+        <form class="create-form card" onsubmit={createItem}>
+          <div class="form-row">
+            <input
+              type="text"
+              placeholder="Neuer Artikel..."
+              bind:value={newItemName}
+              disabled={creating}
+              class="item-name-input"
+            />
+            <div class="quantity-input">
+              <label for="quantity">Menge:</label>
+              <input
+                type="number"
+                id="quantity"
+                min="1"
+                bind:value={newItemQuantity}
+                disabled={creating}
+              />
+            </div>
+            <button type="submit" class="btn-primary" disabled={creating}>
+              {creating ? '...' : 'Hinzufügen'}
+            </button>
+          </div>
+          {#if createError}
+            <p class="error-message">{createError}</p>
+          {/if}
+        </form>
+      {/if}
+
+      <!-- Items Liste -->
+      {#if currentItems.length === 0}
+        <div class="empty-state card">
+          <p>Diese Liste ist leer.</p>
+          {#if auth.isAuthenticated}
+            <p>Fügen Sie Artikel mit dem Formular oben hinzu.</p>
+          {/if}
+        </div>
+      {:else}
+        <ul class="items">
+          {#each currentItems as item (item.id)}
+            <li class="item-row card" class:checked={item.checked}>
+              <div class="item-content">
+                {#if auth.isAuthenticated}
                   <button
-                    class="qty-btn"
-                    onclick={() => updateQuantity(item, -1)}
-                    disabled={updatingItemId === item.id || item.quantity <= 1}
-                  >-</button>
-                {/if}
-                <span>{item.quantity}</span>
-                {#if isAuthenticated()}
-                  <button
-                    class="qty-btn"
-                    onclick={() => updateQuantity(item, 1)}
+                    class="checkbox"
+                    class:checked={item.checked}
+                    onclick={() => toggleChecked(item)}
                     disabled={updatingItemId === item.id}
-                  >+</button>
+                    aria-label={item.checked ? 'Als nicht erledigt markieren' : 'Als erledigt markieren'}
+                  >
+                    {item.checked ? 'yurr' : ''}
+                  </button>
+                {/if}
+                <span class="item-name" class:checked={item.checked}>{item.name}</span>
+                <div class="item-quantity">
+                  {#if auth.isAuthenticated}
+                    <button
+                      class="qty-btn"
+                      onclick={() => updateQuantity(item, -1)}
+                      disabled={updatingItemId === item.id || item.quantity <= 1}
+                    >-</button>
+                  {/if}
+                  <span>{item.quantity}</span>
+                  {#if auth.isAuthenticated}
+                    <button
+                      class="qty-btn"
+                      onclick={() => updateQuantity(item, 1)}
+                      disabled={updatingItemId === item.id}
+                    >+</button>
+                  {/if}
+                </div>
+                {#if auth.isAuthenticated}
+                  <button
+                    class="btn-danger delete-btn"
+                    onclick={() => deleteItem(item.id)}
+                    disabled={deletingItemId === item.id}
+                  >
+                    {deletingItemId === item.id ? '...' : 'X'}
+                  </button>
                 {/if}
               </div>
-              {#if isAuthenticated()}
-                <button
-                  class="btn-danger delete-btn"
-                  onclick={() => deleteItem(item.id)}
-                  disabled={deletingItemId === item.id}
-                >
-                  {deletingItemId === item.id ? '...' : 'X'}
-                </button>
-              {/if}
-            </div>
-          </li>
-        {/each}
-      </ul>
-    {/if}
+            </li>
+          {/each}
+        </ul>
+      {/if}
+    {:catch error}
+      <div class="card">
+        {#if error.message === 'Liste nicht gefunden'}
+          <h2>Liste nicht gefunden</h2>
+          <p class="error-message">Die angeforderte Liste existiert nicht.</p>
+        {:else}
+          <p class="error-message">{error.message}</p>
+        {/if}
+        <a href="/lists" class="btn-primary" style="display: inline-block; margin-top: var(--spacing-md);">
+          Zurück zur Übersicht
+        </a>
+      </div>
+    {/await}
   {/if}
 </div>
 

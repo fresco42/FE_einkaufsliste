@@ -1,5 +1,13 @@
 <script lang="ts">
   import { userApi } from '../lib/api';
+  import { auth } from '../lib/auth.svelte';
+
+  // Redirect wenn bereits eingeloggt
+  $effect(() => {
+    if (auth.isAuthenticated) {
+      window.location.href = '/lists';
+    }
+  });
 
   let username = $state('');
   let password = $state('');

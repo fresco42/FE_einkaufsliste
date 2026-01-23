@@ -1,4 +1,4 @@
-import type { User } from '../types/api';
+/*import type { User } from '../types/api';
 
 interface AuthState {
   user: User | null;
@@ -71,3 +71,4 @@ class AuthStore {
 }
 
 export const authStore = new AuthStore();
+*/

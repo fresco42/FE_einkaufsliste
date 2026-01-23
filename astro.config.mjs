@@ -7,5 +7,13 @@ export default defineConfig({
   output: 'server',
   adapter: node({
     mode: 'standalone'
-  })
+  }),
+  markdown: {
+    shikiConfig: {
+      themes: {
+        light: 'vitesse-light',
+        dark: 'vitesse-black'
+      }
+    }
+  }
 });
