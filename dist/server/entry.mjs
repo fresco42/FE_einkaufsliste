@@ -1,6 +1,6 @@
 import { r as renderers } from './chunks/_@astro-renderers_Dih0nM_v.mjs';
-import { c as createExports, s as serverEntrypointModule } from './chunks/_@astrojs-ssr-adapter_8x0cuihI.mjs';
-import { manifest } from './manifest_UOkhmnca.mjs';
+import { c as createExports, s as serverEntrypointModule } from './chunks/_@astrojs-ssr-adapter_Di8-p0DN.mjs';
+import { manifest } from './manifest_DIrQir2A.mjs';
 
 const serverIslandMap = new Map();;
 

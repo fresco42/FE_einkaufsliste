@@ -72,7 +72,7 @@ export const userApi = {
   },
 
   login(data: LoginRequest): Promise<ApiResponse<LoginResponse>> {
-    return request('/login', {
+    return request('/login/', {
       method: 'POST',
       body: JSON.stringify(data),
     });

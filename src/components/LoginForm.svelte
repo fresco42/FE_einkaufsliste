@@ -1,6 +1,6 @@
 <script lang="ts">
   import { userApi } from '../lib/api';
-  import { authStore } from '../lib/auth';
+  import { authStore, decodeJwt } from '../lib/auth';
 
   let username = $state('');
   let password = $state('');
@@ -18,35 +18,44 @@
 
     loading = true;
 
-    const result = await userApi.login({ username: username.trim(), password });
+    try {
+      const result = await userApi.login({ username: username.trim(), password });
 
-    loading = false;
+      if (result.success) {
+        const { token } = result.data;
+        const payload = decodeJwt(token);
 
-    if (result.success) {
-      const { token } = result.data;
-      localStorage.setItem('token', token);
+        if (!payload || !payload.userId) {
+          error = 'Ungueltiges Token vom Server';
+          loading = false;
+          return;
+        }
 
-      const usersResult = await userApi.getAll();
-      if (usersResult.success) {
-        const currentUser = usersResult.data.find(u => u.username === username.trim());
-        if (currentUser) {
-          authStore.login(currentUser, token);
+        localStorage.setItem('token', token);
+
+        const userResult = await userApi.getById(payload.userId);
+
+        if (userResult.success) {
+          authStore.login(userResult.data, token);
           window.location.href = '/lists';
           return;
         }
-      }
-      error = 'Fehler beim Laden der Benutzerdaten';
-      localStorage.removeItem('token');
-      loading = false;
-      return;
-    } else {
-      if (result.error.status === 401) {
-        error = 'Ungueltige Anmeldedaten';
-      } else if (result.error.status === 400) {
-        error = 'Benutzername und Passwort sind erforderlich';
+
+        error = 'Fehler beim Laden der Benutzerdaten';
+        localStorage.removeItem('token');
       } else {
-        error = result.error.message;
+        if (result.error.status === 401) {
+          error = 'Ungueltige Anmeldedaten';
+        } else if (result.error.status === 400) {
+          error = 'Benutzername und Passwort sind erforderlich';
+        } else {
+          error = result.error.message;
+        }
       }
+    } catch {
+      error = 'Ein unerwarteter Fehler ist aufgetreten';
+    } finally {
+      loading = false;
     }
   }
 </script>
