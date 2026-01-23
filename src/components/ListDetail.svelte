@@ -14,7 +14,7 @@
 
   let list = $state<List | null>(null);
   let items = $state<Item[]>([]);
-  let state = $state<LoadingState>('loading');
+  let loadingStatus = $state<LoadingState>('loading');
   let error = $state('');
 
   let newItemName = $state('');
@@ -34,7 +34,7 @@
   });
 
   async function loadData() {
-    state = 'loading';
+    loadingStatus = 'loading';
     error = '';
 
     const [listResult, itemsResult] = await Promise.all([
@@ -44,10 +44,10 @@
 
     if (!listResult.success) {
       if (listResult.error.status === 404) {
-        state = 'not-found';
+        loadingStatus = 'not-found';
       } else {
         error = listResult.error.message;
-        state = 'error';
+        loadingStatus = 'error';
       }
       return;
     }
@@ -57,10 +57,10 @@
 
     if (itemsResult.success) {
       items = itemsResult.data;
-      state = items.length === 0 ? 'empty' : 'success';
+      loadingStatus = items.length === 0 ? 'empty' : 'success';
     } else {
       error = itemsResult.error.message;
-      state = 'error';
+      loadingStatus = 'error';
     }
   }
 
@@ -96,7 +96,7 @@
     const result = await itemApi.getByListId(listId);
     if (result.success) {
       items = result.data;
-      state = items.length === 0 ? 'empty' : 'success';
+      loadingStatus = items.length === 0 ? 'empty' : 'success';
     }
   }
 
@@ -168,15 +168,15 @@
 </script>
 
 <div class="container">
-  {#if state === 'loading'}
+  {#if loadingStatus === 'loading'}
     <div class="loading">Liste wird geladen...</div>
-  {:else if state === 'not-found'}
+  {:else if loadingStatus === 'not-found'}
     <div class="card">
       <h2>Liste nicht gefunden</h2>
       <p class="error-message">Die angeforderte Liste existiert nicht.</p>
       <a href="/lists" class="btn-primary" style="display: inline-block; margin-top: var(--spacing-md);">Zurueck zur Uebersicht</a>
     </div>
-  {:else if state === 'error'}
+  {:else if loadingStatus === 'error'}
     <div class="card">
       <p class="error-message">{error}</p>
       <button class="btn-primary mt-md" onclick={loadData}>Erneut versuchen</button>
@@ -240,7 +240,7 @@
       </form>
     {/if}
 
-    {#if state === 'empty'}
+    {#if loadingStatus === 'empty'}
       <div class="empty-state card">
         <p>Diese Liste ist leer.</p>
         {#if isAuthenticated()}

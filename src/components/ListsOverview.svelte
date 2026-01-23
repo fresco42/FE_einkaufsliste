@@ -7,7 +7,7 @@
   type LoadingState = 'loading' | 'success' | 'error' | 'empty' | 'unauthorized';
 
   let lists = $state<List[]>([]);
-  let state = $state<LoadingState>('loading');
+  let loadingStatus = $state<LoadingState>('loading');
   let error = $state('');
   let newListName = $state('');
   let creating = $state(false);
@@ -17,24 +17,24 @@
   onMount(() => {
     const authState = authStore.getState();
     if (!authState.isAuthenticated || !authState.user) {
-      state = 'unauthorized';
+      loadingStatus = 'unauthorized';
       return;
     }
     loadLists(authState.user.id);
   });
 
   async function loadLists(userId: number) {
-    state = 'loading';
+    loadingStatus = 'loading';
     error = '';
 
     const result = await listApi.getByUserId(userId);
 
     if (result.success) {
       lists = result.data;
-      state = lists.length === 0 ? 'empty' : 'success';
+      loadingStatus = lists.length === 0 ? 'empty' : 'success';
     } else {
       error = result.error.message;
-      state = 'error';
+      loadingStatus = 'error';
     }
   }
 
@@ -94,14 +94,14 @@
 </script>
 
 <div class="container">
-  {#if state === 'unauthorized'}
+  {#if loadingStatus === 'unauthorized'}
     <div class="card">
       <p class="error-message">Sie muessen angemeldet sein, um Ihre Listen zu sehen.</p>
       <a href="/" class="btn-primary" style="display: inline-block; margin-top: var(--spacing-md);">Zur Anmeldung</a>
     </div>
-  {:else if state === 'loading'}
+  {:else if loadingStatus === 'loading'}
     <div class="loading">Listen werden geladen...</div>
-  {:else if state === 'error'}
+  {:else if loadingStatus === 'error'}
     <div class="card">
       <p class="error-message">{error}</p>
       <button class="btn-primary mt-md" onclick={() => {
@@ -131,7 +131,7 @@
       {/if}
     </form>
 
-    {#if state === 'empty'}
+    {#if loadingStatus === 'empty'}
       <div class="empty-state card">
         <p>Sie haben noch keine Listen erstellt.</p>
         <p>Erstellen Sie Ihre erste Liste mit dem Formular oben.</p>

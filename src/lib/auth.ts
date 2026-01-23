@@ -6,24 +6,6 @@ interface AuthState {
   isAuthenticated: boolean;
 }
 
-interface JwtPayload {
-  userId: number;
-  username: string;
-  iat?: number;
-  exp?: number;
-}
-
-export function decodeJwt(token: string): JwtPayload | null {
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
-    const payload = JSON.parse(atob(parts[1]));
-    return payload as JwtPayload;
-  } catch {
-    return null;
-  }
-}
-
 type Subscriber = (state: AuthState) => void;
 
 class AuthStore {
