@@ -1,4 +1,8 @@
 ---
+
+import { ModeWatcher } from "mode-watcher";
+import ModeToggle from "../components/ModeToggle.svelte";
+
 interface Props {
   title: string;
 }
@@ -15,10 +19,14 @@ const { title } = Astro.props;
     <title>{title} | Einkaufsliste</title>
   </head>
   <body>
+    <ModeWatcher client:load />
     <header class="header">
       <div class="header-content">
         <a href="/" class="logo">Einkaufsliste</a>
-        <nav id="nav-auth"></nav>
+        <div class="header-right">
+          <nav id="nav-auth"></nav>
+          <ModeToggle client:load />
+        </div>
       </div>
     </header>
     <main>
@@ -33,7 +41,7 @@ const { title } = Astro.props;
 
 <style>
   .header {
-    background-color: var(--color-primary);
+    background-color: var(--app-primary);
     color: white;
     padding: var(--spacing-md);
   }
@@ -44,6 +52,12 @@ const { title } = Astro.props;
     display: flex;
     justify-content: space-between;
     align-items: center;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
   }
 
   .logo {
