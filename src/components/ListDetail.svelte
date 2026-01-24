@@ -3,406 +3,160 @@
   import { auth } from '../lib/auth.svelte';
   import type { List, Item } from '../types/api';
 
-  interface Props {
-    listId: number;
-  }
-
+  interface Props { listId: number; }
   let { listId }: Props = $props();
 
-  // Daten-State
-  let dataPromise = $state<Promise<{ list: List; items: Item[] }> | null>(null);
-  let currentList = $state<List | null>(null);
-  let currentItems = $state<Item[]>([]);
+  let list = $state<List | null>(null);
+  let items = $state<Item[]>([]);
+  let loading = $state(true);
+  let error = $state('');
+  let newItem = $state('');
+  let newQty = $state(1);
 
-  // Formular-State
-  let newItemName = $state('');
-  let newItemQuantity = $state(1);
-  let creating = $state(false);
-  let createError = $state('');
+  $effect(() => { loadData(); });
 
-  // Edit-State
-  let editingListName = $state(false);
-  let editedName = $state('');
-  let savingName = $state(false);
-  let updatingItemId = $state<number | null>(null);
-  let deletingItemId = $state<number | null>(null);
-
-  // Initial laden
-  $effect(() => {
-    dataPromise = loadData();
-  });
-
-  async function loadData(): Promise<{ list: List; items: Item[] }> {
-    const [listResult, itemsResult] = await Promise.all([
+  async function loadData() {
+    loading = true;
+    const [listRes, itemsRes] = await Promise.all([
       listApi.getById(listId),
-      itemApi.getByListId(listId),
+      itemApi.getByListId(listId)
     ]);
-
-    if (!listResult.success) {
-      throw new Error(listResult.error.status === 404 ? 'Liste nicht gefunden' : listResult.error.message);
-    }
-    if (!itemsResult.success) {
-      throw new Error(itemsResult.error.message);
-    }
-
-    // Für Mutation speichern
-    currentList = listResult.data;
-    currentItems = itemsResult.data;
-    editedName = listResult.data.name;
-
-    return { list: listResult.data, items: itemsResult.data };
+    loading = false;
+    if (!listRes.success) { error = listRes.error.status === 404 ? 'Liste nicht gefunden' : listRes.error.message; return; }
+    if (!itemsRes.success) { error = itemsRes.error.message; return; }
+    list = listRes.data;
+    items = itemsRes.data;
   }
 
   async function loadItems() {
     const result = await itemApi.getByListId(listId);
-    if (result.success) {
-      currentItems = result.data;
-    }
+    if (result.success) items = result.data;
   }
 
-  async function createItem(e: Event) {
+  async function addItem(e: Event) {
     e.preventDefault();
-    createError = '';
-    if (!newItemName.trim()) {
-      createError = 'Name ist erforderlich';
-      return;
-    }
-
-    creating = true;
-    const result = await itemApi.create({
-      name: newItemName.trim(),
-      quantity: newItemQuantity,
-      list_id: listId,
-    });
-    creating = false;
-
-    if (result.success) {
-      newItemName = '';
-      newItemQuantity = 1;
-      await loadItems();
-    } else {
-      createError = result.error.message;
-    }
+    if (!newItem.trim()) return;
+    await itemApi.create({ name: newItem.trim(), quantity: newQty, list_id: listId });
+    newItem = '';
+    newQty = 1;
+    loadItems();
   }
 
-  async function toggleChecked(item: Item) {
-    updatingItemId = item.id;
-    const result = await itemApi.update(item.id, { checked: !item.checked });
-    updatingItemId = null;
-    if (result.success) await loadItems();
-    else alert('Fehler: ' + result.error.message);
+  async function toggle(item: Item) {
+    await itemApi.update(item.id, { checked: !item.checked });
+    loadItems();
   }
 
-  async function updateQuantity(item: Item, delta: number) {
-    const newQuantity = Math.max(1, item.quantity + delta);
-    if (newQuantity === item.quantity) return;
-
-    updatingItemId = item.id;
-    const result = await itemApi.update(item.id, { quantity: newQuantity });
-    updatingItemId = null;
-    if (result.success) await loadItems();
-    else alert('Fehler: ' + result.error.message);
+  async function updateQty(item: Item, delta: number) {
+    const qty = Math.max(1, item.quantity + delta);
+    if (qty !== item.quantity) {
+      await itemApi.update(item.id, { quantity: qty });
+      loadItems();
+    }
   }
 
   async function deleteItem(id: number) {
-    deletingItemId = id;
-    const result = await itemApi.delete(id);
-    deletingItemId = null;
-    if (result.success) await loadItems();
-    else alert('Fehler beim Löschen: ' + result.error.message);
-  }
-
-  async function saveListName() {
-    if (!editedName.trim() || !currentList) return;
-
-    savingName = true;
-    const result = await listApi.update(listId, { name: editedName.trim() });
-    savingName = false;
-
-    if (result.success) {
-      currentList = { ...currentList, name: editedName.trim() };
-      editingListName = false;
-    } else {
-      alert('Fehler: ' + result.error.message);
-    }
+    await itemApi.delete(id);
+    loadItems();
   }
 </script>
 
 <div class="container">
-  {#if dataPromise}
-    {#await dataPromise}
-      <div class="loading">Liste wird geladen...</div>
-    {:then _data}
-      <!-- Header -->
-      <div class="header-section">
-        <a href="/lists" class="back-link">Zurück</a>
-        {#if editingListName}
-          <div class="edit-name-form">
-            <input type="text" bind:value={editedName} disabled={savingName} />
-            <button class="btn-primary" onclick={saveListName} disabled={savingName}>
-              {savingName ? '...' : 'Speichern'}
-            </button>
-            <button class="btn-secondary" onclick={() => { editingListName = false; editedName = currentList?.name || ''; }}>
-              Abbrechen
-            </button>
-          </div>
-        {:else}
-          <div class="title-row">
-            <h1>{currentList?.name}</h1>
+  {#if loading}
+    <div class="loading">Laden...</div>
+  {:else if error}
+    <div class="card">
+      <p class="error-message">{error}</p>
+      <a href="/lists">Zurueck</a>
+    </div>
+  {:else}
+    <a href="/lists" class="back">Zurueck</a>
+    <h1>{list?.name}</h1>
+
+    {#if auth.isAuthenticated}
+      <form class="card add-form" onsubmit={addItem}>
+        <input placeholder="Neuer Artikel..." bind:value={newItem} />
+        <input type="number" min="1" bind:value={newQty} class="qty-input" />
+        <button type="submit" class="btn-primary">+</button>
+      </form>
+    {/if}
+
+    {#if items.length === 0}
+      <p class="empty">Liste ist leer.</p>
+    {:else}
+      <ul class="items">
+        {#each items as item (item.id)}
+          <li class="card item" class:checked={item.checked}>
             {#if auth.isAuthenticated}
-              <button class="btn-secondary edit-btn" onclick={() => { editingListName = true; }}>
-                Bearbeiten
+              <button class="check" class:done={item.checked} onclick={() => toggle(item)}>
+                {item.checked ? 'x' : ''}
               </button>
             {/if}
-          </div>
-        {/if}
-      </div>
-
-      <!-- Neues Item Formular -->
-      {#if auth.isAuthenticated}
-        <form class="create-form card" onsubmit={createItem}>
-          <div class="form-row">
-            <input
-              type="text"
-              placeholder="Neuer Artikel..."
-              bind:value={newItemName}
-              disabled={creating}
-              class="item-name-input"
-            />
-            <div class="quantity-input">
-              <label for="quantity">Menge:</label>
-              <input
-                type="number"
-                id="quantity"
-                min="1"
-                bind:value={newItemQuantity}
-                disabled={creating}
-              />
+            <span class="name" class:strike={item.checked}>{item.name}</span>
+            <div class="qty">
+              {#if auth.isAuthenticated}
+                <button onclick={() => updateQty(item, -1)} disabled={item.quantity <= 1}>-</button>
+              {/if}
+              <span>{item.quantity}</span>
+              {#if auth.isAuthenticated}
+                <button onclick={() => updateQty(item, 1)}>+</button>
+              {/if}
             </div>
-            <button type="submit" class="btn-primary" disabled={creating}>
-              {creating ? '...' : 'Hinzufügen'}
-            </button>
-          </div>
-          {#if createError}
-            <p class="error-message">{createError}</p>
-          {/if}
-        </form>
-      {/if}
-
-      <!-- Items Liste -->
-      {#if currentItems.length === 0}
-        <div class="empty-state card">
-          <p>Diese Liste ist leer.</p>
-          {#if auth.isAuthenticated}
-            <p>Fügen Sie Artikel mit dem Formular oben hinzu.</p>
-          {/if}
-        </div>
-      {:else}
-        <ul class="items">
-          {#each currentItems as item (item.id)}
-            <li class="item-row card" class:checked={item.checked}>
-              <div class="item-content">
-                {#if auth.isAuthenticated}
-                  <button
-                    class="checkbox"
-                    class:checked={item.checked}
-                    onclick={() => toggleChecked(item)}
-                    disabled={updatingItemId === item.id}
-                    aria-label={item.checked ? 'Als nicht erledigt markieren' : 'Als erledigt markieren'}
-                  >
-                    {item.checked ? 'yurr' : ''}
-                  </button>
-                {/if}
-                <span class="item-name" class:checked={item.checked}>{item.name}</span>
-                <div class="item-quantity">
-                  {#if auth.isAuthenticated}
-                    <button
-                      class="qty-btn"
-                      onclick={() => updateQuantity(item, -1)}
-                      disabled={updatingItemId === item.id || item.quantity <= 1}
-                    >-</button>
-                  {/if}
-                  <span>{item.quantity}</span>
-                  {#if auth.isAuthenticated}
-                    <button
-                      class="qty-btn"
-                      onclick={() => updateQuantity(item, 1)}
-                      disabled={updatingItemId === item.id}
-                    >+</button>
-                  {/if}
-                </div>
-                {#if auth.isAuthenticated}
-                  <button
-                    class="btn-danger delete-btn"
-                    onclick={() => deleteItem(item.id)}
-                    disabled={deletingItemId === item.id}
-                  >
-                    {deletingItemId === item.id ? '...' : 'X'}
-                  </button>
-                {/if}
-              </div>
-            </li>
-          {/each}
-        </ul>
-      {/if}
-    {:catch error}
-      <div class="card">
-        {#if error.message === 'Liste nicht gefunden'}
-          <h2>Liste nicht gefunden</h2>
-          <p class="error-message">Die angeforderte Liste existiert nicht.</p>
-        {:else}
-          <p class="error-message">{error.message}</p>
-        {/if}
-        <a href="/lists" class="btn-primary" style="display: inline-block; margin-top: var(--spacing-md);">
-          Zurück zur Übersicht
-        </a>
-      </div>
-    {/await}
+            {#if auth.isAuthenticated}
+              <button class="btn-danger" onclick={() => deleteItem(item.id)}>X</button>
+            {/if}
+          </li>
+        {/each}
+      </ul>
+    {/if}
   {/if}
 </div>
 
 <style>
-  .header-section {
-    margin-bottom: var(--spacing-lg);
-  }
-
-  .back-link {
-    display: inline-block;
-    margin-bottom: var(--spacing-sm);
-    color: var(--color-secondary);
-  }
-
-  .title-row {
+  .back { display: inline-block; margin-bottom: 0.5rem; color: var(--secondary); }
+  h1 { margin-bottom: 1rem; }
+  .add-form {
     display: flex;
-    align-items: center;
-    gap: var(--spacing-md);
+    gap: 0.5rem;
+    margin-bottom: 1rem;
   }
-
-  h1 {
-    margin: 0;
-  }
-
-  .edit-btn {
-    padding: var(--spacing-xs) var(--spacing-sm);
-    font-size: 0.875rem;
-  }
-
-  .edit-name-form {
-    display: flex;
-    gap: var(--spacing-sm);
-    align-items: center;
-  }
-
-  .edit-name-form input {
-    flex: 1;
-    max-width: 300px;
-  }
-
-  .create-form {
-    margin-bottom: var(--spacing-lg);
-  }
-
-  .form-row {
-    display: flex;
-    gap: var(--spacing-sm);
-    align-items: flex-end;
-    flex-wrap: wrap;
-  }
-
-  .item-name-input {
-    flex: 1;
-    min-width: 200px;
-  }
-
-  .quantity-input {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-xs);
-  }
-
-  .quantity-input input {
-    width: 60px;
-    text-align: center;
-  }
-
-  .quantity-input label {
-    margin: 0;
-    white-space: nowrap;
-  }
-
+  .add-form input { flex: 1; }
+  .qty-input { width: 60px; flex: none; text-align: center; }
   .items {
     list-style: none;
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-sm);
+    gap: 0.5rem;
   }
-
-  .item-row {
-    padding: var(--spacing-md);
-  }
-
-  .item-row.checked {
-    opacity: 0.7;
-    background-color: var(--color-background);
-  }
-
-  .item-content {
+  .item {
     display: flex;
     align-items: center;
-    gap: var(--spacing-md);
+    gap: 1rem;
+    padding: 1rem;
   }
-
-  .checkbox {
+  .item.checked { opacity: 0.6; }
+  .check {
     width: 24px;
     height: 24px;
-    border: 2px solid var(--color-primary);
-    border-radius: var(--border-radius);
-    background: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
-    color: var(--color-primary);
     padding: 0;
+    border: 2px solid var(--primary);
+    background: white;
+    font-weight: bold;
   }
-
-  .checkbox.checked {
-    background-color: var(--color-primary);
-    color: white;
-  }
-
-  .item-name {
-    flex: 1;
-    font-weight: 500;
-  }
-
-  .item-name.checked {
-    text-decoration: line-through;
-    color: var(--color-secondary);
-  }
-
-  .item-quantity {
+  .check.done { background: var(--primary); color: white; }
+  .name { flex: 1; }
+  .strike { text-decoration: line-through; color: var(--secondary); }
+  .qty {
     display: flex;
     align-items: center;
-    gap: var(--spacing-xs);
+    gap: 0.25rem;
   }
-
-  .qty-btn {
+  .qty button {
     width: 28px;
     height: 28px;
     padding: 0;
-    background-color: var(--color-secondary);
+    background: var(--secondary);
     color: white;
-    font-size: 1rem;
-    line-height: 1;
   }
-
-  .qty-btn:hover:not(:disabled) {
-    background-color: var(--color-primary);
-  }
-
-  .delete-btn {
-    padding: var(--spacing-xs) var(--spacing-sm);
-    font-size: 0.875rem;
-  }
+  .empty { color: var(--secondary); text-align: center; padding: 2rem; }
 </style>

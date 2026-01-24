@@ -1,42 +1,27 @@
 import type { User } from '../types/api';
 
-function createAuthStore() {
-  // Reaktiver State - wird automatisch getrackt
+function createAuth() {
   let user = $state<User | null>(null);
   let token = $state<string | null>(null);
 
-  // Beim Start aus localStorage laden
   if (typeof window !== 'undefined') {
-    const storedToken = localStorage.getItem('token');
-    const userStr = localStorage.getItem('user');
-    
-    if (storedToken && userStr) {
-      try {
-        user = JSON.parse(userStr);
-        token = storedToken;
-      } catch {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-      }
+    const t = localStorage.getItem('token');
+    const u = localStorage.getItem('user');
+    if (t && u) {
+      try { user = JSON.parse(u); token = t; } catch { localStorage.clear(); }
     }
   }
 
   return {
-    // Getter für reaktiven Zugriff in Komponenten
     get user() { return user; },
-    get token() { return token; },
     get isAuthenticated() { return !!token && !!user; },
-
-    login(newUser: User, newToken: string) {
-      user = newUser;
-      token = newToken;
-      localStorage.setItem('token', newToken);
-      localStorage.setItem('user', JSON.stringify(newUser));
+    login(u: User, t: string) {
+      user = u; token = t;
+      localStorage.setItem('token', t);
+      localStorage.setItem('user', JSON.stringify(u));
     },
-
     logout() {
-      user = null;
-      token = null;
+      user = null; token = null;
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.location.href = '/';
@@ -44,4 +29,4 @@ function createAuthStore() {
   };
 }
 
-export const auth = createAuthStore();
+export const auth = createAuth();

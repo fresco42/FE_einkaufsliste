@@ -2,11 +2,8 @@
   import { userApi } from '../lib/api';
   import { auth } from '../lib/auth.svelte';
 
-  // Redirect wenn bereits eingeloggt
   $effect(() => {
-    if (auth.isAuthenticated) {
-      window.location.href = '/lists';
-    }
+    if (auth.isAuthenticated) window.location.href = '/lists';
   });
 
   let username = $state('');
@@ -14,97 +11,63 @@
   let error = $state('');
   let loading = $state(false);
 
-  async function handleSubmit(e: Event) {
+  async function submit(e: Event) {
     e.preventDefault();
     error = '';
-
     if (!username.trim() || !password.trim()) {
-      error = 'Benutzername und Passwort sind erforderlich';
+      error = 'Benutzername und Passwort erforderlich';
       return;
     }
-
     loading = true;
-
-    try {
-      const result = await userApi.login({ username: username.trim(), password });
-
-      if (result.success) {
-        // Neuer Store: direkter Aufruf, kein getState() nötig
-        auth.login(result.data.user, result.data.token);
-        window.location.href = '/lists';
-      } else {
-        error = result.error.status === 401 
-          ? 'Ungültige Anmeldedaten'
-          : result.error.status === 400 
-            ? 'Benutzername und Passwort sind erforderlich'
-            : result.error.message;
-      }
-    } catch {
-      error = 'Ein unerwarteter Fehler ist aufgetreten';
-    } finally {
-      loading = false;
+    const result = await userApi.login({ username: username.trim(), password });
+    loading = false;
+    if (result.success) {
+      auth.login(result.data.user, result.data.token);
+      window.location.href = '/lists';
+    } else {
+      error = result.error.status === 401 ? 'Falsche Anmeldedaten' : result.error.message;
     }
   }
 </script>
 
-<div class="card">
+<div class="card form-card">
   <h1>Anmelden</h1>
-  <form onsubmit={handleSubmit}>
+  <form onsubmit={submit}>
     <div class="form-group">
       <label for="username">Benutzername</label>
-      <input
-        type="text"
-        id="username"
-        bind:value={username}
-        disabled={loading}
-        autocomplete="username"
-      />
+      <input id="username" bind:value={username} disabled={loading} />
     </div>
     <div class="form-group">
       <label for="password">Passwort</label>
-      <input
-        type="password"
-        id="password"
-        bind:value={password}
-        disabled={loading}
-        autocomplete="current-password"
-      />
+      <input type="password" id="password" bind:value={password} disabled={loading} />
     </div>
-    {#if error}
-      <p class="error-message">{error}</p>
-    {/if}
-    <button type="submit" class="btn-primary" disabled={loading}>
-      {loading ? 'Wird geladen...' : 'Anmelden'}
+    {#if error}<p class="error-message">{error}</p>{/if}
+    <button type="submit" class="btn-primary full" disabled={loading}>
+      {loading ? '...' : 'Anmelden'}
     </button>
   </form>
-  <p class="register-link">
-    Noch kein Konto? <a href="/register">Jetzt registrieren</a>
-  </p>
+  <p class="link">Noch kein Konto? <a href="/register">Registrieren</a></p>
 </div>
 
 <style>
-  .card {
+  .form-card {
     max-width: 400px;
-    margin: var(--spacing-xl) auto;
+    margin: 2rem auto;
   }
-
   h1 {
-    margin-bottom: var(--spacing-lg);
+    margin-bottom: 1.5rem;
     text-align: center;
   }
-
-  button[type="submit"] {
+  .full {
     width: 100%;
-    margin-top: var(--spacing-sm);
+    margin-top: 0.5rem;
   }
-
-  .register-link {
+  .link {
     text-align: center;
-    margin-top: var(--spacing-lg);
-    color: var(--color-secondary);
+    margin-top: 1.5rem;
+    color: var(--secondary);
   }
-
   .error-message {
-    margin-bottom: var(--spacing-sm);
+    margin-bottom: 0.5rem;
   }
 </style>

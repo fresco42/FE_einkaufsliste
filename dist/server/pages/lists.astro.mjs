@@ -1,22 +1,24 @@
-import { e as createComponent, k as renderComponent, r as renderTemplate } from '../chunks/astro/server_DEbdbej9.mjs';
+import { e as createComponent, k as renderComponent, r as renderTemplate } from '../chunks/astro/server_DrhNJFxr.mjs';
 import 'piccolore';
-import { $ as $$Layout } from '../chunks/Layout_CQz8hh5X.mjs';
+import { a as auth, $ as $$Layout } from '../chunks/Layout_MbU6vGeP.mjs';
 import 'clsx';
-import '../chunks/auth_DKb3P1uZ.mjs';
 /* empty css                                 */
-export { r as renderers } from '../chunks/_@astro-renderers_XKUY5a7S.mjs';
+export { r as renderers } from '../chunks/_@astro-renderers_Dih0nM_v.mjs';
 
 function ListsOverview($$renderer, $$props) {
 	$$renderer.component(($$renderer) => {
 
 		$$renderer.push(`<div class="container">`);
 
-		{
+		if (!auth.isAuthenticated) {
+			$$renderer.push('<!--[-->');
+			$$renderer.push(`<div class="card"><p>Bitte <a href="/">anmelden</a> um Listen zu sehen.</p></div>`);
+		} else {
 			$$renderer.push('<!--[!-->');
 
 			{
 				$$renderer.push('<!--[-->');
-				$$renderer.push(`<div class="loading">Listen werden geladen...</div>`);
+				$$renderer.push(`<div class="loading">Laden...</div>`);
 			}
 
 			$$renderer.push(`<!--]-->`);

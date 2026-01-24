@@ -1,10 +1,9 @@
-import { e as createComponent, f as createAstro, k as renderComponent, r as renderTemplate } from '../../chunks/astro/server_DEbdbej9.mjs';
+import { e as createComponent, f as createAstro, k as renderComponent, r as renderTemplate } from '../../chunks/astro/server_DrhNJFxr.mjs';
 import 'piccolore';
-import { $ as $$Layout } from '../../chunks/Layout_CQz8hh5X.mjs';
+import { $ as $$Layout } from '../../chunks/Layout_MbU6vGeP.mjs';
 import 'clsx';
-import '../../chunks/auth_DKb3P1uZ.mjs';
 /* empty css                                   */
-export { r as renderers } from '../../chunks/_@astro-renderers_XKUY5a7S.mjs';
+export { r as renderers } from '../../chunks/_@astro-renderers_Dih0nM_v.mjs';
 
 function ListDetail($$renderer, $$props) {
 	$$renderer.component(($$renderer) => {
@@ -14,7 +13,7 @@ function ListDetail($$renderer, $$props) {
 
 		{
 			$$renderer.push('<!--[-->');
-			$$renderer.push(`<div class="loading">Liste wird geladen...</div>`);
+			$$renderer.push(`<div class="loading">Laden...</div>`);
 		}
 
 		$$renderer.push(`<!--]--></div>`);

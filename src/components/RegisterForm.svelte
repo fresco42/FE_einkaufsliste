@@ -2,11 +2,8 @@
   import { userApi } from '../lib/api';
   import { auth } from '../lib/auth.svelte';
 
-  // Redirect wenn bereits eingeloggt
   $effect(() => {
-    if (auth.isAuthenticated) {
-      window.location.href = '/lists';
-    }
+    if (auth.isAuthenticated) window.location.href = '/lists';
   });
 
   let username = $state('');
@@ -16,124 +13,73 @@
   let success = $state('');
   let loading = $state(false);
 
-  async function handleSubmit(e: Event) {
+  async function submit(e: Event) {
     e.preventDefault();
     error = '';
     success = '';
-
     if (!username.trim() || !password.trim()) {
-      error = 'Benutzername und Passwort sind erforderlich';
+      error = 'Benutzername und Passwort erforderlich';
       return;
     }
-
     if (password !== confirmPassword) {
       error = 'Passwoerter stimmen nicht ueberein';
       return;
     }
-
-    if (password.length < 4) {
-      error = 'Passwort muss mindestens 4 Zeichen lang sein';
-      return;
-    }
-
     loading = true;
-
     const result = await userApi.register({ username: username.trim(), password });
-
     loading = false;
-
     if (result.success) {
-      success = 'Registrierung erfolgreich! Sie koennen sich jetzt anmelden.';
-      username = '';
-      password = '';
-      confirmPassword = '';
+      success = 'Registrierung erfolgreich! Jetzt anmelden.';
+      username = password = confirmPassword = '';
     } else {
-      if (result.error.status === 409) {
-        error = 'Benutzername ist bereits vergeben';
-      } else if (result.error.status === 400) {
-        error = 'Benutzername und Passwort sind erforderlich';
-      } else {
-        error = result.error.message;
-      }
+      error = result.error.status === 409 ? 'Benutzername vergeben' : result.error.message;
     }
   }
 </script>
 
-<div class="card">
+<div class="card form-card">
   <h1>Registrieren</h1>
-  <form onsubmit={handleSubmit}>
+  <form onsubmit={submit}>
     <div class="form-group">
       <label for="username">Benutzername</label>
-      <input
-        type="text"
-        id="username"
-        bind:value={username}
-        disabled={loading}
-        autocomplete="username"
-      />
+      <input id="username" bind:value={username} disabled={loading} />
     </div>
     <div class="form-group">
       <label for="password">Passwort</label>
-      <input
-        type="password"
-        id="password"
-        bind:value={password}
-        disabled={loading}
-        autocomplete="new-password"
-      />
+      <input type="password" id="password" bind:value={password} disabled={loading} />
     </div>
     <div class="form-group">
-      <label for="confirmPassword">Passwort bestaetigen</label>
-      <input
-        type="password"
-        id="confirmPassword"
-        bind:value={confirmPassword}
-        disabled={loading}
-        autocomplete="new-password"
-      />
+      <label for="confirm">Passwort bestaetigen</label>
+      <input type="password" id="confirm" bind:value={confirmPassword} disabled={loading} />
     </div>
-    {#if error}
-      <p class="error-message">{error}</p>
-    {/if}
-    {#if success}
-      <p class="success-message">{success}</p>
-    {/if}
-    <button type="submit" class="btn-primary" disabled={loading}>
-      {loading ? 'Wird geladen...' : 'Registrieren'}
+    {#if error}<p class="error-message">{error}</p>{/if}
+    {#if success}<p class="success-message">{success}</p>{/if}
+    <button type="submit" class="btn-primary full" disabled={loading}>
+      {loading ? '...' : 'Registrieren'}
     </button>
   </form>
-  <p class="login-link">
-    Bereits ein Konto? <a href="/">Jetzt anmelden</a>
-  </p>
+  <p class="link">Bereits ein Konto? <a href="/">Anmelden</a></p>
 </div>
 
 <style>
-  .card {
+  .form-card {
     max-width: 400px;
-    margin: var(--spacing-xl) auto;
+    margin: 2rem auto;
   }
-
   h1 {
-    margin-bottom: var(--spacing-lg);
+    margin-bottom: 1.5rem;
     text-align: center;
   }
-
-  button[type="submit"] {
+  .full {
     width: 100%;
-    margin-top: var(--spacing-sm);
+    margin-top: 0.5rem;
   }
-
-  .login-link {
+  .link {
     text-align: center;
-    margin-top: var(--spacing-lg);
-    color: var(--color-secondary);
+    margin-top: 1.5rem;
+    color: var(--secondary);
   }
-
-  .error-message {
-    margin-bottom: var(--spacing-sm);
-  }
-
-  .success-message {
-    margin-bottom: var(--spacing-sm);
+  .error-message, .success-message {
+    margin-bottom: 0.5rem;
   }
 </style>

@@ -5,15 +5,5 @@ import node from '@astrojs/node';
 export default defineConfig({
   integrations: [svelte()],
   output: 'server',
-  adapter: node({
-    mode: 'standalone'
-  }),
-  markdown: {
-    shikiConfig: {
-      themes: {
-        light: 'vitesse-light',
-        dark: 'vitesse-black'
-      }
-    }
-  }
+  adapter: node({ mode: 'standalone' })
 });
