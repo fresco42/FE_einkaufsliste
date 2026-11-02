@@ -12,6 +12,7 @@
   let error = $state('');
   let newName = $state('');
   let newQty = $state(1);
+  let updatedListName = $state('');
 
   $effect(() => { load(); });
 
@@ -23,7 +24,9 @@
     ]);
     loading = false;
     if (!listRes.success) {
-      error = listRes.error.status === 404 ? 'Liste nicht gefunden' : listRes.error.message;
+      if (listRes.error.status === 404) error = 'Liste nicht gefunden';
+      else if (listRes.error.status === 403) error = 'Kein Zugriff auf diese Liste';
+      else error = listRes.error.message;
       return;
     }
     if (!itemsRes.success) {
@@ -39,7 +42,7 @@
     if (!newName.trim()) return;
     await itemApi.create({ name: newName.trim(), quantity: newQty, list_id: listId });
     newName = '';
-    newQty = 1;
+    // newQty = 1;
     load();
   }
 
@@ -63,55 +66,149 @@
 
 <div class="container">
   {#if loading}
-    <p>Laden...</p>
+    <div class="loading">Laden...</div>
   {:else if error}
-    <div class="card">
-      <p class="error">{error}</p>
-      <a href="/lists">Zurueck</a>
+    <div class="card error-card">
+      <p class="error-message">{error}</p>
+      <a href="/lists" class="back-link">Zurück zu Listen</a>
     </div>
   {:else}
-    <a href="/lists">Zurueck</a>
+    <a href="/lists" class="back-link">Zurück zu Listen</a>
     <h1>{list?.name}</h1>
 
     {#if auth.isAuthenticated}
-      <form class="card" onsubmit={add}>
-        <input placeholder="Neuer Artikel..." bind:value={newName} />
-        <input type="number" min="1" bind:value={newQty} style="width:60px" />
-        <button type="submit">+</button>
+      <form class="add-form" onsubmit={add}>
+        <input
+          class="add-input"
+          placeholder="Neuer Artikel..."
+          bind:value={newName}
+        />
+        <input
+          type="number"
+          class="qty-input"
+          min="1"
+          bind:value={newQty}
+        />
+        <button type="submit" class="btn-primary btn-icon">+</button>
       </form>
     {/if}
 
     {#if items.length === 0}
-      <p>Liste ist leer.</p>
+      <div class="card empty-state">
+        <p>Diese Liste ist noch leer.</p>
+      </div>
     {:else}
-      <ul class="card">
-        {#each items as item (item.id)}
-          <li class:checked={item.checked}>
-            {#if auth.isAuthenticated}
-              <input type="checkbox" checked={item.checked} onchange={() => toggle(item)} />
-            {/if}
-            <span class:strike={item.checked}>{item.name}</span>
-            {#if auth.isAuthenticated}
-              <input type="number" min="1" value={item.quantity} onchange={(e) => updateQty(item, e)} style="width:50px" />
-              <button onclick={() => remove(item.id)}>X</button>
-            {:else}
-              <span>{item.quantity}</span>
-            {/if}
-          </li>
-        {/each}
-      </ul>
+      <div class="card items-card">
+        <ul class="items-list">
+          {#each items as item (item.id)}
+            <li class="item" class:item-checked={item.checked}>
+              {#if auth.isAuthenticated}
+                <input
+                  type="checkbox"
+                  checked={item.checked}
+                  onchange={() => toggle(item)}
+                />
+              {/if}
+              <span class="item-name" class:item-done={item.checked}>{item.name}</span>
+              <span class="item-qty">{item.quantity}x</span>
+              {#if auth.isAuthenticated}
+                <input
+                  type="number"
+                  class="qty-edit"
+                  min="1"
+                  value={item.quantity}
+                  onchange={(e) => updateQty(item, e)}
+                />
+                <button class="btn-danger btn-icon btn-small" onclick={() => remove(item.id)}>X</button>
+              {/if}
+            </li>
+          {/each}
+        </ul>
+      </div>
     {/if}
   {/if}
 </div>
 
 <style>
-  form { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
-  form input:first-of-type { flex: 1; }
-  ul { list-style: none; padding: 1rem; margin: 0; }
-  li { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0; border-bottom: 1px solid var(--secondary); }
-  li:last-child { border-bottom: none; }
-  li.checked { opacity: 0.6; }
-  li span { flex: 1; }
-  .strike { text-decoration: line-through; }
-  .error { color: red; }
+  .add-form {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+    background: var(--white);
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  }
+
+  .add-input {
+    flex: 1;
+  }
+
+  .qty-input {
+    width: 4.5rem;
+  }
+
+  .items-card {
+    padding: 0;
+  }
+
+  .items-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .item {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+    transition: background-color 0.15s;
+  }
+
+  .item:last-child {
+    border-bottom: none;
+  }
+
+  .item:hover {
+    background: var(--bg);
+  }
+
+  .item-checked {
+    background: var(--bg);
+  }
+
+  .item-name {
+    flex: 1;
+    font-weight: 500;
+  }
+
+  .item-done {
+    text-decoration: line-through;
+    color: var(--secondary);
+  }
+
+  .item-qty {
+    color: var(--secondary);
+    font-size: 0.875rem;
+    min-width: 2rem;
+    text-align: right;
+  }
+
+  .qty-edit {
+    width: 3.5rem;
+    padding: 0.375rem 0.5rem;
+    font-size: 0.875rem;
+  }
+
+  .error-card {
+    text-align: center;
+  }
+
+  .error-card .back-link {
+    margin-top: 1rem;
+    display: inline-block;
+  }
 </style>

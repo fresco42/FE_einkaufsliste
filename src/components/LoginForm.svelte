@@ -30,44 +30,60 @@
   }
 </script>
 
-<div class="card form-card">
-  <h1>Anmelden</h1>
-  <form onsubmit={submit}>
-    <div class="form-group">
-      <label for="username">Benutzername</label>
-      <input id="username" bind:value={username} disabled={loading} />
-    </div>
-    <div class="form-group">
-      <label for="password">Passwort</label>
-      <input type="password" id="password" bind:value={password} disabled={loading} />
-    </div>
-    {#if error}<p class="error-message">{error}</p>{/if}
-    <button type="submit" class="btn-primary full" disabled={loading}>
-      {loading ? '...' : 'Anmelden'}
-    </button>
-  </form>
-  <p class="link">Noch kein Konto? <a href="/register">Registrieren</a></p>
+<div class="form-wrapper">
+  <div class="card form-card">
+    <h1>Anmelden</h1>
+    <form onsubmit={submit}>
+      <div class="form-group">
+        <label for="username">Benutzername</label>
+        <input id="username" bind:value={username} disabled={loading} />
+      </div>
+      <div class="form-group">
+        <label for="password">Passwort</label>
+        <input type="password" id="password" bind:value={password} disabled={loading} />
+      </div>
+      {#if error}<p class="error-message">{error}</p>{/if}
+      <button type="submit" class="btn-primary submit-btn" disabled={loading}>
+        {loading ? 'Laden...' : 'Anmelden'}
+      </button>
+    </form>
+    <p class="alt-link">Noch kein Konto? <a href="/register">Registrieren</a></p>
+  </div>
 </div>
 
 <style>
+  .form-wrapper {
+    display: flex;
+    justify-content: center;
+    padding: 2rem 1rem;
+  }
+
   .form-card {
-    max-width: 400px;
-    margin: 2rem auto;
+    width: 100%;
+    max-width: 380px;
   }
+
   h1 {
-    margin-bottom: 1.5rem;
     text-align: center;
+    margin-bottom: 1.75rem;
   }
-  .full {
+
+  .submit-btn {
     width: 100%;
     margin-top: 0.5rem;
+    padding: 0.75rem;
   }
-  .link {
+
+  .alt-link {
     text-align: center;
     margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
     color: var(--secondary);
+    font-size: 0.875rem;
   }
+
   .error-message {
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.75rem;
   }
 </style>

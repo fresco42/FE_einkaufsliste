@@ -1,6 +1,6 @@
 import type { User, List, Item } from '../types/api';
 
-const API_URL = import.meta.env.PUBLIC_API_URL || 'https://mt241037-10957.node.ustp.cloud';
+const API_URL = import.meta.env.PUBLIC_API_URL;
 
 function getToken(): string | null {
   if (typeof window === 'undefined') return null;
@@ -10,7 +10,7 @@ function getToken(): string | null {
 type ApiResponse<T> = { success: true; data: T } | { success: false; error: { message: string; status: number } };
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
-    const token = getToken();
+  const token = getToken();
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -28,31 +28,28 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   }
 
   try {
-    // 5. Request zusammenbauen und abschicken
     const res = await fetch(API_URL + endpoint, {
       method: options.method || 'GET',
       body: options.body,
       headers: headers,
     });
 
-    // 6. Antwort als JSON parsen
-    const data = await res.json();
+    // Bei 401 antwortet das Backend mit Klartext statt JSON
+    const data = await res.json().catch(() => ({}));
 
-    // 7. Erfolg oder Fehler zurückgeben
     if (res.ok) {
       return { success: true, data: data };
     } else {
       return {
         success: false,
         error: {
-          message: data.message || 'Fehler',
+          message: data.error || data.message || 'Fehler',
           status: res.status
         }
       };
     }
 
   } catch (error) {
-    // 8. Netzwerkfehler (Server nicht erreichbar, kein Internet, etc.)
     return {
       success: false,
       error: {

@@ -33,48 +33,97 @@
     await listApi.delete(id);
     load();
   }
+
 </script>
 
 <div class="container">
   {#if !auth.isAuthenticated}
-    <div class="card">
+    <div class="card auth-prompt">
       <p>Bitte <a href="/">anmelden</a> um Listen zu sehen.</p>
     </div>
   {:else if loading}
-    <p>Laden...</p>
+    <div class="loading">Laden...</div>
   {:else if error}
     <div class="card">
-      <p class="error">{error}</p>
+      <p class="error-message">{error}</p>
     </div>
   {:else}
     <h1>Meine Listen</h1>
 
-    <form class="card" onsubmit={create}>
-      <input placeholder="Neue Liste..." bind:value={newName} />
-      <button type="submit">Erstellen</button>
+    <form class="create-form" onsubmit={create}>
+      <input class="create-input" placeholder="Neue Liste..." bind:value={newName} />
+      <button type="submit" class="btn-primary">Erstellen</button>
     </form>
 
     {#if lists.length === 0}
-      <p>Keine Listen vorhanden.</p>
+      <div class="card empty-state">
+        <p>Noch keine Listen vorhanden.</p>
+      </div>
     {:else}
-      <ul class="card">
-        {#each lists as list (list.id)}
-          <li>
-            <a href="/lists/{list.id}">{list.name}</a>
-            <button onclick={() => remove(list.id)}>X</button>
-          </li>
-        {/each}
-      </ul>
+      <div class="card lists-card">
+        <ul class="lists">
+          {#each lists as list (list.id)}
+            <li class="list-item">
+              <a href="/lists/{list.id}" class="list-link">{list.name}</a>
+              <button class="btn-danger btn-icon btn-small" onclick={() => remove(list.id)}>X</button>
+            </li>
+          {/each}
+        </ul>
+      </div>
     {/if}
   {/if}
 </div>
 
 <style>
-  form { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
-  form input { flex: 1; }
-  ul { list-style: none; padding: 1rem; margin: 0; }
-  li { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--secondary); }
-  li:last-child { border-bottom: none; }
-  li a { flex: 1; }
-  .error { color: red; }
+  .auth-prompt {
+    text-align: center;
+    padding: 2rem;
+  }
+
+  .create-form {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+    background: var(--white);
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  }
+
+  .create-input {
+    flex: 1;
+  }
+
+  .lists-card {
+    padding: 0;
+  }
+
+  .lists {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .list-item {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+    transition: background-color 0.15s;
+  }
+
+  .list-item:last-child {
+    border-bottom: none;
+  }
+
+  .list-item:hover {
+    background: var(--bg);
+  }
+
+  .list-link {
+    flex: 1;
+    font-weight: 500;
+  }
 </style>

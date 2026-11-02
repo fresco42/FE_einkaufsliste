@@ -1,12 +1,22 @@
-/tmp
-/out-tsc
+# Abhängigkeiten und Build
+node_modules/
+dist/
+.astro/
 
-/node_modules
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-/.pnp
-.pnp.js
-
-.vscode/*
+# Secrets
 .env
+.env.*
+!.env.example
+
+# IDE / Tools
+.idea/
+.vscode/
+.claude/
+CLAUDE.md
+
+# OS / Logs / Archive
+.DS_Store
+Thumbs.db
+nul
+*.log
+*.zip
